@@ -29,7 +29,7 @@ interface PriceRequestParams {
 }
 
 const AFFILIATE_FEE = 0.01; // Percentage of the buyAmount that should be attributed to feeRecipient as affiliate fees
-const FEE_RECIPIENT = "0x13eD301e7aF49813340e20e6B8495806A8703e60"; // The ETH address that should receive affiliate fees
+const FEE_RECIPIENT = "0x75A94931B81d81C7a62b76DC0FcFAC77FbE1e917"; // The ETH address that should receive affiliate fees
 
 export const fetcher = ([endpoint, params]: [string, PriceRequestParams]) => {
   const { sellAmount, buyAmount } = params;
@@ -80,7 +80,7 @@ export default function PriceView({
       ? parseUnits(buyAmount, buyTokenDecimals).toString()
       : undefined;
 
-  const { data: priceData, error: priceError, isLoading: isLoadingPrice } = useSWR(
+  const { isLoading: isLoadingPrice } = useSWR(
     [
       "/api/price",
       {
@@ -103,10 +103,6 @@ export default function PriceView({
         } else {
           setSellAmount(formatUnits(data.sellAmount, sellTokenDecimals));
         }
-        if (priceError) {
-          return <div>Error fetching price: {priceError.message}</div>;
-        }
-      
       },
     }
   );
@@ -127,9 +123,10 @@ export default function PriceView({
 
   return (
     <form>
-      <h1 className="text-3xl font-bold mb-4">Nebula x protocol</h1>
+      <h1 className="text-3xl font-bold mb-4">0x Swap API Demo</h1>
       <p className="text-md mb-2">
-         Swap Dapp for decentralized tokens
+        Check out the <a href="https://0x.org/docs/">0x Docs</a> and{" "}
+        <a href="https://0x.org/docs/">Code</a> to build your own
       </p>
       <p className="text-md font-bold mb-2">Polygon Network</p>
 
@@ -317,12 +314,7 @@ function ApproveOrReviewButton({
           type="button"
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full"
           onClick={async () => {
-            try {
-              const writtenValue = await approveAsync();
-            } catch (approvalError) {
-              // Handle approval error
-              console.error("Error during approval:", approvalError);
-            }
+            const writtenValue = await approveAsync();
           }}
         >
           {isApproving ? "Approving…" : "Approve"}
