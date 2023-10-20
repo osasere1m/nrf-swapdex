@@ -9,11 +9,13 @@ import {
   usePrepareContractWrite,
   useContractWrite,
   useWaitForTransaction,
+  useBalance,
   type Address,
 } from "wagmi";
 import {
   POLYGON_TOKENS,
   POLYGON_TOKENS_BY_SYMBOL,
+  POLYGON_TOKENS_BY_ADDRESS,
   MAX_ALLOWANCE,
   exchangeProxy,
 } from "../../lib/constants";
@@ -26,6 +28,9 @@ interface PriceRequestParams {
   takerAddress?: string;
 }
 
+const AFFILIATE_FEE = 0.01; // Percentage of the buyAmount that should be attributed to feeRecipient as affiliate fees
+const FEE_RECIPIENT = "0x13eD301e7aF49813340e20e6B8495806A8703e60"; // The ETH address that should receive affiliate fees
+
 export const fetcher = ([endpoint, params]: [string, PriceRequestParams]) => {
   const { sellAmount, buyAmount } = params;
   if (!sellAmount && !buyAmount) return;
@@ -35,6 +40,7 @@ export const fetcher = ([endpoint, params]: [string, PriceRequestParams]) => {
 };
 
 export default function PriceView({
+  price,
   setPrice,
   setFinalize,
   takerAddress,
@@ -61,6 +67,7 @@ export default function PriceView({
 
   const sellTokenDecimals = POLYGON_TOKENS_BY_SYMBOL[sellToken].decimals;
 
+  console.log(sellAmount, sellTokenDecimals, "<-");
   const parsedSellAmount =
     sellAmount && tradeDirection === "sell"
       ? parseUnits(sellAmount, sellTokenDecimals).toString()
@@ -73,7 +80,7 @@ export default function PriceView({
       ? parseUnits(buyAmount, buyTokenDecimals).toString()
       : undefined;
 
-  const { isLoading: isLoadingPrice } = useSWR(
+  const { data: priceData, error: priceError, isLoading: isLoadingPrice } = useSWR(
     [
       "/api/price",
       {
@@ -82,6 +89,8 @@ export default function PriceView({
         sellAmount: parsedSellAmount,
         buyAmount: parsedBuyAmount,
         takerAddress,
+        feeRecipient: FEE_RECIPIENT,
+        buyTokenPercentageFee: AFFILIATE_FEE,
       },
     ],
     fetcher,
@@ -89,20 +98,38 @@ export default function PriceView({
       onSuccess: (data) => {
         setPrice(data);
         if (tradeDirection === "sell") {
+          console.log(formatUnits(data.buyAmount, buyTokenDecimals), data);
           setBuyAmount(formatUnits(data.buyAmount, buyTokenDecimals));
         } else {
           setSellAmount(formatUnits(data.sellAmount, sellTokenDecimals));
         }
+        if (priceError) {
+          return <div>Error fetching price: {priceError.message}</div>;
+        }
+      
       },
     }
   );
 
+  const { data, isError, isLoading } = useBalance({
+    address: takerAddress,
+    token: POLYGON_TOKENS_BY_SYMBOL[sellToken].address,
+  });
+
+  console.log(sellAmount);
+
+  const disabled =
+    data && sellAmount
+      ? parseUnits(sellAmount, sellTokenDecimals) > data.value
+      : true;
+
+  console.log(data, isError, isLoading);
+
   return (
     <form>
-      <h1 className="text-3xl font-bold mb-4">nearfinance protocol Swap Demo</h1>
+      <h1 className="text-3xl font-bold mb-4">Nebula x protocol</h1>
       <p className="text-md mb-2">
-        Check out the dex swap
-        
+         Swap Dapp for decentralized tokens
       </p>
       <p className="text-md font-bold mb-2">Polygon Network</p>
 
@@ -183,6 +210,20 @@ export default function PriceView({
             }}
           />
         </section>
+        <div className="text-slate-400">
+          {price && price.grossBuyAmount
+            ? "Affiliate Fee: " +
+              Number(
+                formatUnits(
+                  BigInt(price.grossBuyAmount),
+                  POLYGON_TOKENS_BY_SYMBOL[buyToken].decimals
+                )
+              ) *
+                AFFILIATE_FEE +
+              " " +
+              POLYGON_TOKENS_BY_SYMBOL[buyToken].symbol
+            : null}
+        </div>
       </div>
 
       {takerAddress ? (
@@ -192,6 +233,7 @@ export default function PriceView({
           onClick={() => {
             setFinalize(true);
           }}
+          disabled={disabled}
         />
       ) : (
         <ConnectKitButton.Custom>
@@ -228,10 +270,12 @@ function ApproveOrReviewButton({
   takerAddress,
   onClick,
   sellTokenAddress,
+  disabled,
 }: {
   takerAddress: Address;
   onClick: () => void;
   sellTokenAddress: Address;
+  disabled?: boolean;
 }) {
   // 1. Read from erc20, does spender (0x Exchange Proxy) have allowance?
   const { data: allowance, refetch } = useContractRead({
@@ -273,10 +317,15 @@ function ApproveOrReviewButton({
           type="button"
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full"
           onClick={async () => {
-            const writtenValue = await approveAsync();
+            try {
+              const writtenValue = await approveAsync();
+            } catch (approvalError) {
+              // Handle approval error
+              console.error("Error during approval:", approvalError);
+            }
           }}
         >
-          {isApproving ? "Approving..." : "Approve"}
+          {isApproving ? "Approving…" : "Approve"}
         </button>
       </>
     );
@@ -285,10 +334,11 @@ function ApproveOrReviewButton({
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
-      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full"
+      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full disabled:opacity-25"
     >
-      Review Trade
+      {disabled ? "Insufficient Balance" : "Review Trade"}
     </button>
   );
 }

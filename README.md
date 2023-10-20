@@ -18,9 +18,9 @@ An example ERC-20 swap application built on [Next.js](https://nextjs.org/) with 
 2. Install project dependencies
 
 ```
-npm install connectkit wagmi viem
+npm install connectkit wagmi viem fs net tls
 ```
-npm install fs net tls
+
 
 3. Start the Next.js development server
 
