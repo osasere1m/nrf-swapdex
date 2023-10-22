@@ -111,15 +111,34 @@ export default function PriceView({
     address: takerAddress,
     token: POLYGON_TOKENS_BY_SYMBOL[sellToken].address,
   });
+  
 
-  console.log(sellAmount);
+  const balanceValue = data ? data.value : 0n;
+  const parsedSellAmountValue = sellAmount
+    ? parseUnits(sellAmount, sellTokenDecimals)
+    : 0n;
+
+  
+
+  console.log(balanceValue);
 
   const disabled =
-    data && sellAmount
-      ? parseUnits(sellAmount, sellTokenDecimals) > data.value
-      : true;
+    parsedSellAmountValue > balanceValue || !parsedSellAmountValue;
 
-  console.log(data, isError, isLoading);
+
+  // Handle insufficient balance error
+  if (disabled) {
+    return (
+      <div>
+        {balanceValue === 0n
+          ? "You have zero balance."
+          : `Insufficient balance. Your balance: ${formatUnits(
+              balanceValue,
+              sellTokenDecimals
+            )} ${sellToken}`}
+      </div>
+    );
+  }
 
   return (
     <form>
@@ -330,7 +349,7 @@ function ApproveOrReviewButton({
       onClick={onClick}
       className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full disabled:opacity-25"
     >
-      {disabled ? "Insufficient Balance" : "Review Trade"}
+      {disabled ? "Insufficent Balance" : "Review Trade"}
     </button>
   );
 }
