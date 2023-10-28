@@ -113,32 +113,14 @@ export default function PriceView({
   });
   
 
-  const balanceValue = data ? data.value : 0n;
-  const parsedSellAmountValue = sellAmount
-    ? parseUnits(sellAmount, sellTokenDecimals)
-    : 0n;
-
-  
-
-  console.log(balanceValue);
+  console.log(sellAmount);
 
   const disabled =
-    parsedSellAmountValue > balanceValue || !parsedSellAmountValue;
+    data && sellAmount
+      ? parseUnits(sellAmount, sellTokenDecimals) > data.value
+      : true;
 
-
-  // Handle insufficient balance error
-  if (disabled) {
-    return (
-      <div>
-        {balanceValue === 0n
-          ? "You have zero balance."
-          : `Insufficient balance. Your balance: ${formatUnits(
-              balanceValue,
-              sellTokenDecimals
-            )} ${sellToken}`}
-      </div>
-    );
-  }
+  console.log(data, isError, isLoading);
 
   return (
     <form>
@@ -282,6 +264,7 @@ export default function PriceView({
   );
 }
 
+
 function ApproveOrReviewButton({
   takerAddress,
   onClick,
@@ -323,7 +306,9 @@ function ApproveOrReviewButton({
   });
 
   if (error) {
+    console.log(error.message)
     return <div>Something went wrong: {error.message}</div>;
+    
   }
 
   if (allowance === 0n && approveAsync) {
